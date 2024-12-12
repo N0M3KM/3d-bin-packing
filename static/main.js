@@ -30,11 +30,11 @@ document.getElementById("addBoxBtn").addEventListener("click", () => {
         newBoxInput.classList.add("boxInput");
         newBoxInput.innerHTML = `
             <h3>Box ${boxCount + 1}: <input type="text" id="boxName${boxCount}" placeholder="Box Name" required /></h3>
-            <label for="length${boxCount}">Length:</label>
+            <label for="length${boxCount}">Height:</label>
             <input type="number" id="length${boxCount}" required />
             <label for="width${boxCount}">Width:</label>
             <input type="number" id="width${boxCount}" required />
-            <label for="height${boxCount}">Height:</label>
+            <label for="height${boxCount}">Length:</label>
             <input type="number" id="height${boxCount}" required />
             <label for="weight${boxCount}">Weight(gram):</label>
             <input type="number" id="weight${boxCount}" required />
