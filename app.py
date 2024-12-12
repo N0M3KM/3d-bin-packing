@@ -1,12 +1,9 @@
 from flask import Flask, render_template, request, jsonify
-from flask_cors import CORS  
-from py3dbp import Packer, Bin, Item, Painter
-import time
+from flask_cors import CORS
+from py3dbp import Packer, Bin, Item
 
 app = Flask(__name__)
-CORS(app)  
-
-BASE_BOX_DIM = 30
+CORS(app, resources={r"/*": {"origins": "*"}})
 
 @app.route('/')
 def index():
@@ -14,78 +11,84 @@ def index():
 
 @app.route('/calculate_packing', methods=['POST'])
 def calculate_packing():
-    data = request.json
-    boxes = data.get('boxes')
+    try:
+        data = request.json
+        print("Received data:", data)
 
-    # boxes = sorted(boxes, key=lambda box: box['length'] * box['width'] * box['height'], reverse=True)
+        WHD = data.get('base_dimensions')
+        boxes = data.get('boxes')
 
-    packed_boxes = []
-    # occupied_spaces = []
-    placement_status = [] 
+        if not WHD or not isinstance(WHD, list) or len(WHD) != 3 or any(dim <= 0 for dim in WHD):
+            return jsonify({"error": "Invalid or missing base dimensions"}), 400
 
-    packer = Packer()
+        if not boxes or not isinstance(boxes, list):
+            return jsonify({"error": "Invalid or missing boxes data"}), 400
 
-    box = Bin(
-        partno='Bin',
-        WHD=(BASE_BOX_DIM,BASE_BOX_DIM,BASE_BOX_DIM),
-        max_weight=10000,
-        corner=0,
-        put_type=0
+        packed_boxes = []
+
+        packer = Packer()
+        base_box = Bin(
+            partno='BaseBox',
+            WHD=tuple(WHD),
+            max_weight=10000,
+            corner=0,
+            put_type=0
         )
-    
-    packer.addBin(box)
+        packer.addBin(base_box)
 
-    for i, i_box in enumerate(boxes) :
-        print(i, i_box)
-        print((str(i+1)))
+        for i, i_box in enumerate(boxes):
+            if 'width' in i_box and 'height' in i_box and 'length' in i_box and 'weight' in i_box:
+                weight = i_box['weight'] if i_box['weight'] > 0 else 10
+                packer.addItem(Item(
+                    partno=str(i + 1),
+                    name=i_box.get('name', f"Box {i + 1}"),
+                    typeof='cube',
+                    WHD=(i_box['width'], i_box['height'], i_box['length']),
+                    weight=weight,
+                    level=1,
+                    loadbear=10,
+                    updown=True,
+                    color='#FF0000'
+                ))
+            else:
+                return jsonify({"error": f"Invalid box data at index {i}"}), 400
 
-        print(i_box['width'],i_box['height'],i_box['length'])
-        packer.addItem(Item(
-            partno = str(i+1),
-            name = 'Box',
-            typeof = 'cube',
-            WHD = (i_box['width'],i_box['height'],i_box['length']), 
-            weight = 10,
-            level = 1,
-            loadbear = 10,
-            updown = True,
-            color = '#FF0000')
+        packer.pack(
+            bigger_first=True,
+            distribute_items=False,
+            fix_point=True,
+            check_stable=True,
+            support_surface_ratio=0.75,
+            number_of_decimals=0
         )
 
-    packer.pack(
-        bigger_first=True,
-        distribute_items=False,
-        fix_point=True,
-        check_stable=True,
-        support_surface_ratio=0.75,
-        # binding=[('server','cabint','wash')],
-        # binding=['cabint','wash','server'],
-        number_of_decimals=0
-    )
+        for box in packer.bins:
+            for item in box.items:
+                x, y, z = item.position
+                w, h, d = item.getDimension()
 
-    for box in packer.bins:
-        for i, item in enumerate (box.items):
-            x,y,z = item.position
-            [w,h,d] = item.getDimension()
-            print(x,y,z,w,h,d)
-            packed_boxes.append({
-                'id': i,
-                'x': int(x),
-                'y': int(y),
-                'z': int(z),
-                'width': int(w),
-                'height': int(h),
-                'length': int(d)
-            })
-        #placement_status.append({'box_index': i, 'status': 'Placed'})
+                if x + w > WHD[0] or y + h > WHD[1] or z + d > WHD[2]:
+                    return jsonify({"error": f"Item {item.partno} does not fit inside the base box."}), 400
 
-    print(packed_boxes)
+                packed_boxes.append({
+                    'id': item.partno,
+                    'name': item.name,
+                    'x': int(x),
+                    'y': int(y),
+                    'z': int(z),
+                    'width': int(w),
+                    'height': int(h),
+                    'length': int(d),
+                    'weight': item.weight
+                })
 
-    return jsonify({
-        'packed_boxes': packed_boxes,
-        'placement_status': placement_status
-    })
+        return jsonify({
+            'packed_boxes': packed_boxes
+        })
 
+    except Exception as e:
+        print("Error:", str(e))
+        return jsonify({"error": str(e)}), 500
 
 
 if __name__ == '__main__':

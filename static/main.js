@@ -9,8 +9,10 @@ document.getElementById("container3D").appendChild(renderer.domElement);
 const controls = new OrbitControls(camera, renderer.domElement);
 camera.position.z = 50;
 
-const BASE_BOX_DIM = 30;
-
+const DIVISIONS = 5;
+const labelMeshes = []
+const rulerGroup = new THREE.Group()
+const boxesGroup = new THREE.Group()
 const light = new THREE.AmbientLight(0x404040);
 scene.add(light);
 
@@ -20,21 +22,22 @@ window.addEventListener("resize", () => {
     renderer.setSize(window.innerWidth, window.innerHeight);
 });
 
-
-let boxCount = 1; 
+let boxCount = 1;
 
 document.getElementById("addBoxBtn").addEventListener("click", () => {
-    if (boxCount < 20) { 
+    if (boxCount < 20) {
         const newBoxInput = document.createElement("div");
         newBoxInput.classList.add("boxInput");
         newBoxInput.innerHTML = `
-            <h3>Box ${boxCount + 1}</h3>
+            <h3>Box ${boxCount + 1}: <input type="text" id="boxName${boxCount}" placeholder="Box Name" required /></h3>
             <label for="length${boxCount}">Length:</label>
             <input type="number" id="length${boxCount}" required />
             <label for="width${boxCount}">Width:</label>
             <input type="number" id="width${boxCount}" required />
             <label for="height${boxCount}">Height:</label>
             <input type="number" id="height${boxCount}" required />
+            <label for="weight${boxCount}">Weight(gram):</label>
+            <input type="number" id="weight${boxCount}" required />
         `;
         document.getElementById("boxes").appendChild(newBoxInput);
         boxCount++;
@@ -47,17 +50,30 @@ async function calculatePacking() {
     const boxes = [];
     const boxesContainer = document.getElementById("boxes");
 
+    const baseLength = parseFloat(document.getElementById("baseLength").value);
+    const baseWidth = parseFloat(document.getElementById("baseWidth").value);
+    const baseHeight = parseFloat(document.getElementById("baseHeight").value);
+
+    if (!baseLength || !baseWidth || !baseHeight) {
+        alert("Please enter valid dimensions for the base box.");
+        return;
+    }
+
     const boxInputs = boxesContainer.getElementsByClassName("boxInput");
     for (let i = 0; i < boxInputs.length; i++) {
+        const name = document.getElementById(`boxName${i}`).value;
         const length = document.getElementById(`length${i}`);
         const width = document.getElementById(`width${i}`);
         const height = document.getElementById(`height${i}`);
+        const weight = document.getElementById(`weight${i}`);
 
-        if (length.value && width.value && height.value) {
+        if (length.value && width.value && height.value && weight.value && name) {
             boxes.push({
+                name: name,
                 length: parseFloat(length.value),
                 width: parseFloat(width.value),
-                height: parseFloat(height.value)
+                height: parseFloat(height.value),
+                weight: parseFloat(weight.value)
             });
         }
     }
@@ -67,75 +83,176 @@ async function calculatePacking() {
         return;
     }
 
+    const requestBody = {
+        base_dimensions: [baseWidth, baseHeight, baseLength],
+        boxes
+    };
+    console.log("Request Body:", requestBody);
+
     try {
-        const response = await fetch("http://localhost:5000/calculate_packing", {
+        const response = await fetch("http://127.0.0.1:5000/calculate_packing", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ boxes })
+            body: JSON.stringify(requestBody)
         });
 
         if (!response.ok) {
-            throw new Error("Failed to calculate packing");
+            const errorResponse = await response.json();
+            throw new Error(errorResponse.error || "Failed to calculate packing");
         }
 
         const packedBoxes = await response.json();
-        console.log("Packed boxes data:", packedBoxes);  
-        visualizePacking(packedBoxes);
+        console.log("Packed boxes data:", packedBoxes);
+        visualizePacking(packedBoxes, baseWidth, baseHeight, baseLength);
     } catch (error) {
         console.error("Error:", error);
-        alert("There was an error while calculating the packing. Please try again.");
+        alert(error.message || "There was an error while calculating the packing. Please try again.");
     }
 }
 
-function visualizePacking(responseData) {
+function visualizePacking(responseData, baseWidth, baseHeight, baseLength) {
     const packedBoxes = responseData.packed_boxes;
-    const placementStatus = responseData.placement_status;
 
-    while (scene.children.length > 2) {
-        scene.remove(scene.children[2]);
-    }
+    rulerGroup.clear();
+    boxesGroup.clear();
 
-    const baseBox = new THREE.BoxGeometry(BASE_BOX_DIM, BASE_BOX_DIM, BASE_BOX_DIM);
-    const baseMaterial = new THREE.MeshBasicMaterial({ color: 0xff0000, wireframe: true });
-    const baseMesh = new THREE.Mesh(baseBox, baseMaterial);
-    baseMesh.position.set(0, 0, 0);
-    scene.add(baseMesh);
+    const baseBox = new THREE.BoxGeometry(baseWidth, baseLength, baseHeight);
+    const edgesGeometry = new THREE.EdgesGeometry(baseBox);
+    const edgesMaterial = new THREE.LineBasicMaterial({ color: 0xffffff });
+    const baseEdges = new THREE.LineSegments(edgesGeometry, edgesMaterial);
+    baseEdges.position.set(0, 0, 0);
 
-    const boxColorList = document.getElementById('box-color-list');
-    boxColorList.innerHTML = '';
+    rulerGroup.add(baseEdges);
+    createDynamicRulerLines([baseWidth, baseLength, baseHeight]);
 
-    packedBoxes.forEach((box, index) => {
-        const geometry = new THREE.BoxGeometry(box.width, box.height, box.length);
+    packedBoxes.forEach((box) => {
+        const geometry = new THREE.BoxGeometry(box.width, box.length, box.height);
         const color = Math.floor(Math.random() * 0xffffff);
-        const material = new THREE.MeshBasicMaterial({ color: color });
+        const material = new THREE.MeshBasicMaterial({ 
+            color: color
+        });
 
         const mesh = new THREE.Mesh(geometry, material);
         mesh.position.set(
-            box.x - BASE_BOX_DIM / 2 + box.width / 2,
-            box.y - BASE_BOX_DIM / 2 + box.height / 2,
-            box.z - BASE_BOX_DIM / 2 + box.length / 2
+            box.x - baseWidth / 2 + box.width / 2,
+            box.z - baseLength / 2 + box.length / 2,
+            box.y - baseHeight / 2 + box.height / 2
         );
-        scene.add(mesh);
+        mesh.userData = {
+            name: box.name,
+            width: box.width,
+            length: box.length,
+            height: box.height,
+            volume: box.width*box.length*box.length,
+            weight: box.weight
+        };
+        boxesGroup.add(mesh);
 
-        //const status = placementStatus.find(status => status.box_index === index).status;
-        //updateBoxColorList(index, color, status); 
+    });
+
+    scene.add(boxesGroup);
+}
+
+function addLabel(value, axis, position, sizeTuple) {
+    const fontLoader = new THREE.FontLoader();
+    fontLoader.load('https://threejs.org/examples/fonts/helvetiker_regular.typeface.json', (font) => {
+        const textGeometry = new THREE.TextGeometry(value.toString(), {
+            font: font,
+            size: 0.75,
+            height: 0.1,
+        });
+        const textMaterial = new THREE.MeshBasicMaterial({ color: 0xffffff });
+        const textMesh = new THREE.Mesh(textGeometry, textMaterial);
+        if (axis === 0) { // X-axis
+            textMesh.position.set(position, -sizeTuple[1] / 2 - 2, -sizeTuple[2] / 2);
+        } else if (axis === 1) { // Y-axis
+            textMesh.position.set(-sizeTuple[0] / 2 - 2, position, -sizeTuple[2] / 2);
+        } else if (axis === 2) { // Z-axis
+            textMesh.position.set(-sizeTuple[0] / 2, -sizeTuple[1] / 2 - 2, position);
+        }
+        rulerGroup.add(textMesh);
+        labelMeshes.push(textMesh); 
     });
 }
 
-function updateBoxColorList(index, color, status) {
-    const boxColorList = document.getElementById('box-color-list');
+function updateLabels() {
+    labelMeshes.forEach((label) => {
+        label.lookAt(camera.position);
+    });
+}
 
-    if (!document.getElementById(`box-${index}`)) {
-        const listItem = document.createElement('li');
-        listItem.textContent = `Box ${index + 1}: Color #${color.toString(16).padStart(6, '0')} - ${status}`;
-        listItem.style.color = `#${color.toString(16).padStart(6, '0')}`;
-        listItem.id = `box-${index}`;
-        boxColorList.appendChild(listItem);
+function createDynamicRulerLines(sizeTuple) {
+    for (let axis = 0; axis < 3; axis++) {
+        for (let i = 0; i <= DIVISIONS; i++) {
+            const interval = sizeTuple[axis] / DIVISIONS;
+            const position = i * interval - sizeTuple[axis] / 2;
+            const axisVector = [new THREE.Vector3(), new THREE.Vector3()];
+
+            if (axis === 0) { // X-axis
+                axisVector[0].set(position, -sizeTuple[1]  / 2, -sizeTuple[2]  / 2);
+                axisVector[1].set(position, -sizeTuple[1]  / 2 - 1, -sizeTuple[2]  / 2);
+            } else if (axis === 1) { // Y-axis
+                axisVector[0].set(-sizeTuple[0]  / 2, position, -sizeTuple[2]  / 2);
+                axisVector[1].set(-sizeTuple[0]  / 2 - 1, position, -sizeTuple[2]  / 2);
+            } else if (axis === 2) { // Z-axis
+                axisVector[0].set(-sizeTuple[0]  / 2, -sizeTuple[1]  / 2, position);
+                axisVector[1].set(-sizeTuple[0]  / 2, -sizeTuple[1]  / 2 - 1, position);
+            }
+
+            const lineMaterial = new THREE.LineBasicMaterial({ color: 0xffffff });
+            const geometry = new THREE.BufferGeometry().setFromPoints(axisVector);
+            const line = new THREE.Line(geometry, lineMaterial);
+            rulerGroup.add(line);
+
+            addLabel(i * interval, axis, position, sizeTuple);
+        }
+    }
+
+    scene.add(rulerGroup);
+}
+
+renderer.setAnimationLoop(() => {
+    updateLabels();
+    renderer.render(scene, camera);
+});
+
+
+const raycaster = new THREE.Raycaster();
+
+function displayObjectInfo(event) {
+    const coords = new THREE.Vector2(
+        (event.clientX / renderer.domElement.clientWidth) * 2 - 1,
+        -((event.clientY / renderer.domElement.clientHeight) * 2 - 1),
+    )
+
+    raycaster.setFromCamera(coords, camera);
+
+    const intersections = raycaster.intersectObjects(boxesGroup.children, true)
+
+    boxesGroup.children.forEach(obj => {
+        obj.material.opacity = 0.5;
+        obj.material.transparent = true;
+    });
+
+    if (intersections.length > 0) {
+        const selectedObject = intersections[0].object;
+        const properties = selectedObject.userData;
+
+        selectedObject.material.opacity = 1.0;
+
+        tooltip.innerHTML = `Name: ${properties.name}<br>Size: ${properties.width} x ${properties.length} x ${properties.height} cm<br>Volume : ${properties.volume} cm<sup>3</sup><br>Weight : ${properties.weight} g` || "Undefined";
+
+        tooltip.style.left = `${event.clientX+20}px`;
+        tooltip.style.top = `${event.clientY+550}px`;
+        
+        tooltip.style.display = "block";
+    } else {
+        tooltip.style.display = "none";
     }
 }
 
-
 document.getElementById("calculateBtn").addEventListener("click", calculatePacking);
+document.addEventListener("mousemove", displayObjectInfo, false)
 
 function animate() {
     requestAnimationFrame(animate);

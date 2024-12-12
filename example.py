@@ -27,10 +27,32 @@ packer.addBin(box)
 # 64 pcs per case ,  82 * 46 * 170 (85.12)
 
 packer.addItem(Item(
+    partno='Dyson DC34 Animal{}'.format(str(1)),
+    name='Dyson', 
+    typeof='cube',
+    WHD=(5, 7, 10), 
+    weight=1000,
+    level=1,
+    loadbear=10,
+    updown=True,
+    color='#FF0000')
+)
+packer.addItem(Item(
+    partno='Dyson DC34 Animal{}'.format(str(2)),
+    name='Dyson', 
+    typeof='cube',
+    WHD=(8, 10, 7), 
+    weight=10,
+    level=1,
+    loadbear=10,
+    updown=True,
+    color='#FF0000')
+)
+packer.addItem(Item(
     partno='Dyson DC34 Animal{}'.format(str(3)),
     name='Dyson', 
     typeof='cube',
-    WHD=(5, 5, 5), 
+    WHD=(2, 3, 5), 
     weight=10,
     level=1,
     loadbear=10,
@@ -41,8 +63,8 @@ packer.addItem(Item(
     partno='Dyson DC34 Animal{}'.format(str(4)),
     name='Dyson', 
     typeof='cube',
-    WHD=(20, 5, 20), 
-    weight=50,
+    WHD=(4, 6, 5), 
+    weight=10,
     level=1,
     loadbear=10,
     updown=True,
@@ -52,8 +74,8 @@ packer.addItem(Item(
     partno='Dyson DC34 Animal{}'.format(str(5)),
     name='Dyson', 
     typeof='cube',
-    WHD=(20, 20, 20), 
-    weight=70,
+    WHD=(4, 7, 2), 
+    weight=10,
     level=1,
     loadbear=10,
     updown=True,
@@ -63,7 +85,7 @@ packer.addItem(Item(
     partno='Dyson DC34 Animal{}'.format(str(6)),
     name='Dyson', 
     typeof='cube',
-    WHD=(20, 10, 20), 
+    WHD=(5, 5, 15), 
     weight=10,
     level=1,
     loadbear=10,
@@ -74,7 +96,40 @@ packer.addItem(Item(
     partno='Dyson DC34 Animal{}'.format(str(7)),
     name='Dyson', 
     typeof='cube',
-    WHD=(20, 5, 20), 
+    WHD=(5, 7, 1), 
+    weight=10,
+    level=1,
+    loadbear=10,
+    updown=True,
+    color='#FF0000')
+)
+packer.addItem(Item(
+    partno='Dyson DC34 Animal{}'.format(str(8)),
+    name='Dyson', 
+    typeof='cube',
+    WHD=(5, 7, 1), 
+    weight=10,
+    level=1,
+    loadbear=10,
+    updown=True,
+    color='#FF0000')
+)
+packer.addItem(Item(
+    partno='Dyson DC34 Animal{}'.format(str(9)),
+    name='Dyson', 
+    typeof='cube',
+    WHD=(9, 7, 10), 
+    weight=10,
+    level=1,
+    loadbear=10,
+    updown=True,
+    color='#FF0000')
+)
+packer.addItem(Item(
+    partno='Dyson DC34 Animal{}'.format(str(10)),
+    name='Dyson', 
+    typeof='cube',
+    WHD=(5, 10, 1), 
     weight=10,
     level=1,
     loadbear=10,
