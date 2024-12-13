@@ -5,7 +5,9 @@ const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
 const renderer = new THREE.WebGLRenderer({ alpha: true });
 renderer.setSize(window.innerWidth, window.innerHeight);
-document.getElementById("container3D").appendChild(renderer.domElement);
+
+const container = document.getElementById("container3D");
+container.appendChild(renderer.domElement);
 const controls = new OrbitControls(camera, renderer.domElement);
 camera.position.z = 50;
 
@@ -218,16 +220,35 @@ renderer.setAnimationLoop(() => {
 
 
 const raycaster = new THREE.Raycaster();
+const edgeHighlight = new THREE.LineSegments(
+    new THREE.EdgesGeometry(new THREE.BoxGeometry()),
+    new THREE.LineBasicMaterial({ color: 0xffffff, linewidth: 2 })
+);
+scene.add(edgeHighlight);
 
 function displayObjectInfo(event) {
+    const container = document.getElementById("container3D");
+    const rect = container.getBoundingClientRect();
+
+    if (
+        event.clientX < rect.left ||
+        event.clientX > rect.right ||
+        event.clientY < rect.top ||
+        event.clientY > rect.bottom
+    ) {
+        tooltip.style.display = "none";
+        edgeHighlight.visible = false;
+        return;
+    }
+
     const coords = new THREE.Vector2(
-        (event.clientX / renderer.domElement.clientWidth) * 2 - 1,
-        -((event.clientY / renderer.domElement.clientHeight) * 2 - 1),
-    )
+        (event.clientX / container.clientWidth) * 2 - 1,
+        -((event.clientY / container.clientHeight) * 2 - 1)
+    );
 
     raycaster.setFromCamera(coords, camera);
 
-    const intersections = raycaster.intersectObjects(boxesGroup.children, true)
+    const intersections = raycaster.intersectObjects(boxesGroup.children, true);
 
     boxesGroup.children.forEach(obj => {
         obj.material.opacity = 0.5;
@@ -240,14 +261,22 @@ function displayObjectInfo(event) {
 
         selectedObject.material.opacity = 1.0;
 
+        // Update tooltip
         tooltip.innerHTML = `Name: ${properties.name}<br>Size: ${properties.width} x ${properties.length} x ${properties.height} cm<br>Volume : ${properties.volume} cm<sup>3</sup><br>Weight : ${properties.weight} g` || "Undefined";
 
-        tooltip.style.left = `${event.clientX+20}px`;
-        tooltip.style.top = `${event.clientY+550}px`;
-        
+        tooltip.style.left = `${event.pageX - tooltip.offsetWidth / 2 + 100}px`;
+        tooltip.style.top = `${event.pageY - tooltip.offsetHeight / 2}px`;
+
         tooltip.style.display = "block";
+
+        // Highlight the edges
+        edgeHighlight.geometry.dispose();
+        edgeHighlight.geometry = new THREE.EdgesGeometry(selectedObject.geometry);
+        edgeHighlight.position.copy(selectedObject.position);
+        edgeHighlight.visible = true;
     } else {
         tooltip.style.display = "none";
+        edgeHighlight.visible = false;
     }
 }
 

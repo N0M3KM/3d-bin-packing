@@ -156,5 +156,8 @@ button:disabled {
     pointer-events: none;
     font-size: 12px;
     z-index: 1000;
-    display: none; /* Initially hidden */
+    display: none;
+    border: 2px solid white;
+    box-sizing: border-box;
 }
+
