@@ -166,7 +166,7 @@ function visualizePacking(responseData, baseWidth, baseHeight, baseLength) {
 
     const baseBox = new THREE.BoxGeometry(baseWidth, baseLength, baseHeight);
     const edgesGeometry = new THREE.EdgesGeometry(baseBox);
-    const edgesMaterial = new THREE.LineBasicMaterial({ color: 0xff0000 }); // Changed to red
+    const edgesMaterial = new THREE.LineBasicMaterial({ color: 0x000000 });
     const baseEdges = new THREE.LineSegments(edgesGeometry, edgesMaterial);
     baseEdges.position.set(0, 0, 0);
 
@@ -224,12 +224,12 @@ function displayBoxInfo(box) {
 function addLabel(value, axis, position, sizeTuple) {
     const fontLoader = new THREE.FontLoader();
     fontLoader.load('https://threejs.org/examples/fonts/helvetiker_regular.typeface.json', (font) => {
-        const textGeometry = new THREE.TextGeometry(value.toString(), {
+        const textGeometry = new THREE.TextGeometry(value.toFixed(1), {
             font: font,
             size: 0.75,
             height: 0.1,
         });
-        const textMaterial = new THREE.MeshBasicMaterial({ color: 0xff0000 });
+        const textMaterial = new THREE.MeshBasicMaterial({ color: 0x000000 });
         const textMesh = new THREE.Mesh(textGeometry, textMaterial);
         if (axis === 0) {
             textMesh.position.set(position, -sizeTuple[1] / 2 - 2, -sizeTuple[2] / 2);
@@ -267,7 +267,7 @@ function createDynamicRulerLines(sizeTuple) {
                 axisVector[1].set(-sizeTuple[0] / 2, -sizeTuple[1] / 2 - 1, position);
             }
 
-            const lineMaterial = new THREE.LineBasicMaterial({ color: 0xff0000 });
+            const lineMaterial = new THREE.LineBasicMaterial({ color: 0x000000 });
             const geometry = new THREE.BufferGeometry().setFromPoints(axisVector);
             const line = new THREE.Line(geometry, lineMaterial);
             rulerGroup.add(line);
@@ -311,7 +311,7 @@ document.addEventListener("mousemove", (event) => {
     const intersections = raycaster.intersectObjects(boxesGroup.children, true);
 
     boxesGroup.children.forEach(obj => {
-        obj.material.opacity = 0.5;
+        obj.material.opacity = 0.75;
         obj.material.transparent = true;
     });
 
